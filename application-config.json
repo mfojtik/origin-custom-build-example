@@ -1,0 +1,109 @@
+{
+  "kind": "Config",
+  "apiVersion": "v1beta1",
+  "annotations": {
+    "description": "An example config for custom build strategy"
+  },
+  "metadata":{
+    "name": "go-helloworld-sample",
+    "labels": {
+      "name": "go-helloworld-build"
+    }
+  },
+  "items": [
+    {
+      "kind": "BuildConfig",
+      "apiVersion": "v1beta1",
+      "metadata":{
+        "name": "custom-sample-build"
+      },
+      "parameters": {
+        "source" : {
+          "type" : "Git",
+          "git" : {
+            "uri": "git://github.com/mfojtik/go-hello-world.git"
+          }
+        },
+        "strategy": {
+          "type": "Custom",
+          "customStrategy": {
+            "builderImage": "mfojtik/go-scratch-builder",
+            "exposeDockerSocket": true,
+            "env": [
+              { "name": "EXPOSE_PORT", "value": "8080" }
+            ]
+          }
+        },
+        "output": {
+          "imageTag": "mfojtik/go-hello-world:latest",
+          "registry": "172.121.17.3:5001"
+        }
+      }
+    },
+    {
+      "id": "frontend",
+      "kind": "Service",
+      "apiVersion": "v1beta1",
+      "port": 5432,
+      "containerPort": 8080,
+      "selector": {
+        "name": "frontend"
+      }
+    },
+    {
+      "kind": "DeploymentConfig",
+      "apiVersion": "v1beta1",
+      "metadata":{
+        "name": "frontend",
+        "labels": {
+          "name": "frontend"
+        }
+      },
+      "triggers": [
+        {
+          "type": "ImageChange",
+          "imageChangeParams": {
+            "automatic": true,
+            "containerNames": [
+              "go-hello-world"
+            ],
+            "repositoryName": "172.121.17.3:5001/mfojtik/go-hello-world",
+            "tag": "latest"
+          }
+        }
+      ],
+      "template": {
+        "strategy": {
+          "type":"Recreate"
+        },
+        "controllerTemplate": {
+          "replicas": 1,
+          "replicaSelector": {
+            "name": "frontend"
+          },
+          "podTemplate": {
+            "labels": {
+              "name": "frontend"
+            },
+            "desiredState": {
+              "manifest": {
+                "version": "v1beta1",
+                "containers": [
+                  {
+                    "name": "go-hello-world",
+                    "image": "172.121.17.3:5001/mfojtik/go-hello-world",
+                    "ports": [
+                      {
+                        "containerPort": 8080
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
